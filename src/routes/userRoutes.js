@@ -10,6 +10,17 @@ import {
 
 const router = express.Router();
 
+router.param('id', (req, res, next, id) => {
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({
+      error: 'El ID debe ser un número entero positivo',
+    });
+  }
+
+  next();
+});
+
+
 // Middleware de validación
 const validateUser = [
   body('name').trim().notEmpty().withMessage('El nombre es requerido'),

@@ -1,15 +1,19 @@
-import pkg from "pg";
-import dotenv from "dotenv";
+import "dotenv/config";
+import pg from "pg";
 
-dotenv.config();
+const { Pool } = pg;
 
-const { Pool } = pkg;
+if (!process.env.DATABASE_URL) {
+  throw new Error("Falta DATABASE_URL en el archivo .env");
+}
 
-const db = new Pool({
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
+  connectionTimeoutMillis: 10000,
 });
 
-export default db;
+export default pool;

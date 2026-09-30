@@ -1,5 +1,6 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
+
 import {
   getPosts,
   getPost,
@@ -11,21 +12,42 @@ import {
 
 const router = express.Router();
 
-// Middleware de validación
 const validatePost = [
-  body('title').trim().notEmpty().withMessage('El título es requerido'),
-  body('content').trim().notEmpty().withMessage('El contenido es requerido'),
-  body('author_id').isInt().withMessage('author_id debe ser un número entero'),
-  body('published').optional().isBoolean().withMessage('published debe ser booleano'),
+  body('title')
+    .trim()
+    .notEmpty()
+    .withMessage('El título es requerido'),
+  body('content')
+    .trim()
+    .notEmpty()
+    .withMessage('El contenido es requerido'),
+  body('author_id')
+    .isInt()
+    .withMessage('author_id debe ser un número entero'),
+  body('published')
+    .optional()
+    .isBoolean({ strict: true })
+    .withMessage('published debe ser booleano'),
 ];
 
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
+
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
+
   next();
 };
+router.param('id', (req, res, next, id) => {
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({
+      error: 'El ID debe ser un número entero positivo',
+    });
+  }
+
+  next();
+});
 
 /**
  * @swagger
@@ -38,6 +60,24 @@ const handleValidationErrors = (req, res, next) => {
  *         description: Lista de posts
  */
 router.get('/', getPosts);
+
+/**
+ * @swagger
+ * /posts/author/{authorId}:
+ *   get:
+ *     summary: Obtener posts de un autor
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: authorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Posts del autor
+ */
+router.get('/author/:authorId', getAuthorPosts);
 
 /**
  * @swagger
@@ -58,24 +98,6 @@ router.get('/', getPosts);
  *         description: Post no encontrado
  */
 router.get('/:id', getPost);
-
-/**
- * @swagger
- * /posts/author/{authorId}:
- *   get:
- *     summary: Obtener posts de un autor
- *     tags: [Posts]
- *     parameters:
- *       - in: path
- *         name: authorId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Posts del autor
- */
-router.get('/author/:authorId', getAuthorPosts);
 
 /**
  * @swagger
@@ -107,8 +129,15 @@ router.get('/author/:authorId', getAuthorPosts);
  *         description: Post creado exitosamente
  *       400:
  *         description: Datos inválidos
+ *       404:
+ *         description: Autor no existe
  */
-router.post('/', validatePost, handleValidationErrors, createNewPost);
+router.post(
+  '/',
+  validatePost,
+  handleValidationErrors,
+  createNewPost
+);
 
 /**
  * @swagger
@@ -138,12 +167,27 @@ router.post('/', validatePost, handleValidationErrors, createNewPost);
  *     responses:
  *       200:
  *         description: Post actualizado
+ *       400:
+ *         description: Datos inválidos
  *       404:
  *         description: Post no encontrado
  */
-router.put('/:id', 
-  body('title').trim().optional().notEmpty().withMessage('El título no puede estar vacío'),
-  body('content').trim().optional().notEmpty().withMessage('El contenido no puede estar vacío'),
+router.put(
+  '/:id',
+  body('title')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('El título no puede estar vacío'),
+  body('content')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('El contenido no puede estar vacío'),
+  body('published')
+    .optional()
+    .isBoolean({ strict: true })
+    .withMessage('published debe ser booleano'),
   handleValidationErrors,
   updateExistingPost
 );

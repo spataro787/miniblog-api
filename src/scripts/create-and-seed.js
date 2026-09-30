@@ -1,89 +1,77 @@
-import fs from 'fs/promises';
-import path from 'path';
+import 'dotenv/config';
+import fs from 'node:fs/promises';
 import pg from 'pg';
-import dotenv from 'dotenv';
 
-dotenv.config();
+const { Pool } = pg;
 
-const {
-  DB_USER,
-  DB_PASSWORD,
-  DB_HOST,
-  DB_PORT,
-  DB_NAME = 'miniblog',
-  DATABASE_URL,
-} = process.env;
+async function run() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('Falta DATABASE_URL en el .env');
+  }
 
-const adminConfig = DATABASE_URL
-  ? { connectionString: DATABASE_URL }
-  : {
-      user: DB_USER,
-      password: DB_PASSWORD,
-      host: DB_HOST,
-      port: DB_PORT,
-      database: 'postgres',
-    };
+  const databaseUrl = new URL(process.env.DATABASE_URL);
+  const databaseName = decodeURIComponent(
+    databaseUrl.pathname.slice(1)
+  );
 
-const run = async () => {
-  const { Pool } = pg;
-  const adminPool = new Pool(adminConfig);
+  if (!databaseName) {
+    throw new Error('DATABASE_URL debe incluir el nombre de la base');
+  }
+
+  // Este script está preparado para PostgreSQL local.
+  const adminUrl = new URL(databaseUrl.href);
+  adminUrl.pathname = '/postgres';
+
+  const adminPool = new Pool({
+    connectionString: adminUrl.href,
+    connectionTimeoutMillis: 10000,
+  });
 
   try {
-    // comprobar existencia de la BD
-    const existsRes = await adminPool.query('SELECT 1 FROM pg_database WHERE datname = $1', [DB_NAME]);
-    if (existsRes.rowCount === 0) {
-      console.log(`Base de datos '${DB_NAME}' no existe. Creando...`);
-      await adminPool.query(`CREATE DATABASE "${DB_NAME}"`);
-      console.log(`Base de datos '${DB_NAME}' creada.`);
+    const exists = await adminPool.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [databaseName]
+    );
+
+    if (exists.rowCount === 0) {
+      const safeName = databaseName.replace(/"/g, '""');
+
+      await adminPool.query(`CREATE DATABASE "${safeName}"`);
+      console.log('✅ Base de datos creada');
     } else {
-      console.log(`Base de datos '${DB_NAME}' ya existe.`);
+      console.log('✅ La base de datos ya existe');
     }
-  } catch (err) {
-    console.error('Error creando la base de datos:', err.message);
-    await adminPool.end();
-    process.exit(1);
   } finally {
     await adminPool.end();
   }
 
-  // Conectar a la BD creada y ejecutar scripts
-  const dbConfig = DATABASE_URL
-    ? { connectionString: DATABASE_URL }
-    : {
-        user: DB_USER,
-        password: DB_PASSWORD,
-        host: DB_HOST,
-        port: DB_PORT,
-        database: DB_NAME,
-      };
-
-  const db = new Pool(dbConfig);
+  const databasePool = new Pool({
+    connectionString: databaseUrl.href,
+    connectionTimeoutMillis: 10000,
+  });
 
   try {
-    const setupPath = path.resolve('sql/setup.sql');
-    const seedPath = path.resolve('sql/seed.sql');
+    const setupSql = await fs.readFile(
+      new URL('../services/setup.sql', import.meta.url),
+      'utf8'
+    );
 
-    const setupSql = await fs.readFile(setupPath, 'utf8');
-    const seedSql = await fs.readFile(seedPath, 'utf8');
+    const seedSql = await fs.readFile(
+      new URL('../services/seed.sql', import.meta.url),
+      'utf8'
+    );
 
-    console.log('Ejecutando sql/setup.sql...');
-    await db.query(setupSql);
-    console.log('setup.sql ejecutado.');
+    await databasePool.query(setupSql);
+    console.log('✅ Estructura preparada');
 
-    console.log('Ejecutando sql/seed.sql...');
-    await db.query(seedSql);
-    console.log('seed.sql ejecutado.');
-
-    console.log('Base de datos inicializada y con datos de ejemplo.');
-  } catch (err) {
-    console.error('Error ejecutando scripts SQL:', err.message);
-    process.exit(1);
+    await databasePool.query(seedSql);
+    console.log('✅ Datos de ejemplo cargados');
   } finally {
-    await db.end();
+    await databasePool.end();
   }
-};
+}
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
+run().catch((error) => {
+  console.error('❌ Error:', error.message);
+  process.exitCode = 1;
 });

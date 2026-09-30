@@ -1,161 +1,226 @@
 # MiniBlog API
 
-API REST sencilla para gestionar autores y posts, desarrollada con Node.js, Express y PostgreSQL.
+API REST para gestionar autores y publicaciones, desarrollada con Node.js, Express y PostgreSQL.
 
-## Descripción
+## Funcionalidades
 
-MiniBlog API permite realizar operaciones CRUD sobre autores y posts. Cada post pertenece a un autor y la API incluye validación de datos, protección contra inyección SQL y documentación OpenAPI.
+- CRUD de autores y publicaciones.
+- Consulta de publicaciones por autor.
+- Validación de campos e IDs.
+- Consultas SQL parametrizadas.
+- Documentación interactiva con Swagger.
+- Scripts para preparar la base y cargar ejemplos.
+- Pruebas con Vitest.
+
+## Tecnologías
+
+Node.js, Express, PostgreSQL, node-postgres, express-validator, Swagger y Vitest.
 
 ## Requisitos
 
-- Node.js 18 o superior
-- npm
-- PostgreSQL
-- Railway (opcional, para despliegue)
+- Node.js y npm. Proyecto probado con Node.js 24.
+- PostgreSQL en ejecución.
+- Git.
 
 ## Instalación local
 
-1. Clona el repositorio:
 ```bash
-git clone https://github.com/tu-usuario/miniblog-api.git
+git clone https://github.com/spataro787/miniblog-api.git
 cd miniblog-api
-```
-
-2. Instala las dependencias:
-```bash
 npm install
 ```
 
-3. Copia el archivo de ejemplo de entorno:
+Copiá el archivo de configuración de ejemplo. En Git Bash:
+
 ```bash
 cp .env.example .env
 ```
 
-4. Edita `.env` con tus credenciales de PostgreSQL:
+Configurá `.env` con tus credenciales locales:
+
 ```env
-DB_USER=postgres
-DB_PASSWORD=tu_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=miniblog
+DATABASE_URL="postgresql://postgres:TU_PASSWORD@127.0.0.1:5432/miniblog-api"
 PORT=3000
 NODE_ENV=development
 ```
 
-> Si despliegas en Railway y usas `DATABASE_URL`, la aplicación detecta esa variable y se conecta con SSL.
+Reemplazá `TU_PASSWORD` por tu contraseña y ajustá el puerto si corresponde.
+Los caracteres especiales de la contraseña deben codificarse para usarlos
+en la URL. No subas `.env` al repositorio.
 
-## Configuración de la base de datos
+## Preparar la base de datos
 
-### Opción 1: Usar el script de inicialización Node.js
+Para crear la base si no existe, preparar las tablas y cargar ejemplos:
+
+```bash
+node src/scripts/create-and-seed.js
+```
+
+Este script está preparado para PostgreSQL local. El usuario necesita
+permiso para crear bases de datos si la base todavía no existe.
+
+Si la base ya existe y solo querés preparar su estructura:
+
 ```bash
 node init-db.js
 ```
 
-### Opción 2: Ejecutar SQL directo
+Para cargar únicamente los ejemplos en una base ya preparada:
+
 ```bash
-psql -h localhost -U postgres -d miniblog -f sql/setup.sql
-psql -h localhost -U postgres -d miniblog -f sql/seed.sql
+node src/scripts/seed-safe.js
 ```
 
-### Cargar datos de ejemplo
+La carga de ejemplos evita repetir autores por email y publicaciones
+por título y autor. No elimina registros existentes.
+
+## Comprobar la conexión
+
 ```bash
-psql -h localhost -U postgres -d miniblog -f sql/seed.sql
+node src/db/test-db.js
 ```
 
-## Ejecutar la aplicación
+Si la conexión funciona, muestra `✅ CONEXIÓN OK` y la fecha del servidor.
 
-### Modo desarrollo
+## Iniciar la API
+
+Durante el desarrollo:
+
 ```bash
 npm run dev
 ```
 
-### Modo producción
+Nodemon reinicia el servidor al guardar cambios.
+
+Para iniciar sin Nodemon:
+
 ```bash
 npm start
 ```
 
-La API estará disponible en `http://localhost:3000`.
+Con `PORT=3000`, la API está disponible en:
 
-## Ejecutar tests
+http://localhost:3000
+
+PostgreSQL y el servidor Node.js deben estar en ejecución.
+No es necesario mantener pgAdmin abierto.
+
+## Pruebas
+
+Ejecutar los tests una vez:
+
+```bash
+npm test -- --run
+```
+
+Ejecutarlos en modo interactivo:
 
 ```bash
 npm test
 ```
 
-## Documentación OpenAPI
+## Documentación
 
-La documentación interactiva está disponible en:
-```bash
+Con la API iniciada, abrí:
+
 http://localhost:3000/api-docs
-```
 
-Archivos disponibles:
-- `docs/openapi.yaml`
-- `docs/openapi.json`
+La documentación interactiva se genera desde los comentarios Swagger
+de los archivos de rutas.
 
-Regenera el JSON con:
+El proyecto también contiene documentación en `docs/`.
+Para ejecutar el generador de documentación:
+
 ```bash
 npm run generate-docs
 ```
 
-## Endpoints principales
+## Endpoints
 
-### Autores
-
-| Método | Ruta | Descripción |
-| --- | --- | --- |
-| GET | `/authors` | Obtener todos los autores |
-| GET | `/authors/:id` | Obtener un autor por ID |
+| Método | Ruta | Función |
+|---|---|---|
+| GET | `/authors` | Listar autores |
+| GET | `/authors/:id` | Consultar un autor |
 | POST | `/authors` | Crear un autor |
-| PUT | `/authors/:id` | Actualizar un autor |
+| PUT | `/authors/:id` | Editar un autor |
 | DELETE | `/authors/:id` | Eliminar un autor |
+| GET | `/posts` | Listar publicaciones |
+| GET | `/posts/:id` | Consultar una publicación |
+| GET | `/posts/author/:authorId` | Consultar publicaciones de un autor |
+| POST | `/posts` | Crear una publicación |
+| PUT | `/posts/:id` | Editar una publicación |
+| DELETE | `/posts/:id` | Eliminar una publicación |
+| GET | `/test` | Comprobar la conexión con PostgreSQL |
 
-### Posts
+## Ejemplos
 
-| Método | Ruta | Descripción |
-| --- | --- | --- |
-| GET | `/posts` | Obtener todos los posts |
-| GET | `/posts/:id` | Obtener un post por ID |
-| GET | `/posts/author/:authorId` | Obtener posts de un autor |
-| POST | `/posts` | Crear un post |
-| PUT | `/posts/:id` | Actualizar un post |
-| DELETE | `/posts/:id` | Eliminar un post |
+Crear un autor con `POST /authors`:
 
-## Scripts SQL
-
-- `sql/setup.sql`: crea las tablas `authors` y `posts`
-- `sql/seed.sql`: inserta datos de ejemplo para autores y posts
-
-## Despliegue en Railway
-
-1. Crea una cuenta en Railway: https://railway.app
-2. Importa el repositorio
-3. Agrega un plugin PostgreSQL
-4. Configura las variables de entorno del proyecto
-
-Variables recomendadas:
-- `DATABASE_URL` (preferido)
-- `PORT` (Railway suele asignarlo automáticamente)
-- `NODE_ENV=production`
-
-Railway genera una URL pública similar a:
-```text
-https://<project-name>.up.railway.app
+```json
+{
+  "name": "Autor de ejemplo",
+  "email": "autor@example.com",
+  "bio": "Descripción del autor"
+}
 ```
 
-Para la base de datos, Railway proporciona un `DATABASE_URL` interno que debes usar en las variables del proyecto.
+Crear una publicación con `POST /posts`:
 
-## Uso de AI
+```json
+{
+  "title": "Mi publicación",
+  "content": "Contenido de ejemplo",
+  "author_id": 1,
+  "published": true
+}
+```
 
-Este proyecto fue revisado y documentado con asistencia de AI para asegurar la cobertura de los entregables: código fuente, scripts SQL, `.env.example`, tests y documentación OpenAPI.
+Reemplazá `author_id` por el ID de un autor existente.
 
-## Seguridad
+Para editar un autor, enviá nombre y email.
+Para editar una publicación, podés enviar los campos que querés cambiar.
+`published` debe ser un booleano JSON: `true` o `false`.
 
-- Validación con `express-validator`
-- SQL parametrizado
-- CORS habilitado
-- Variables sensibles fuera del repositorio (`.env`)
+## Estructura
+
+| Ubicación | Función |
+|---|---|
+| `src/routes/` | Rutas y validaciones |
+| `src/controllers/` | Coordinación de peticiones y respuestas |
+| `src/models/` | Consultas SQL |
+| `src/db/` | Conexión y prueba de PostgreSQL |
+| `src/middleware/` | Manejo de errores |
+| `src/scripts/` | Preparación y carga de la base |
+| `src/services/setup.sql` | Tablas y ajustes del esquema |
+| `src/services/seed.sql` | Datos de ejemplo |
+| `tests/` | Pruebas automáticas |
+| `src/app.js` | Configuración de Express |
+| `src/server.js` | Inicio del servidor |
+
+El esquema incluye `authors`, `posts` y `comments`.
+La API actual expone autores y publicaciones; comentarios no tiene endpoints.
+
+Eliminar un autor también elimina sus publicaciones y los comentarios
+relacionados, según las relaciones `ON DELETE CASCADE` del esquema.
+
+## Seguridad y alcance
+
+- Validación de entradas con express-validator.
+- Consultas parametrizadas en los modelos.
+- Credenciales configuradas mediante variables de entorno.
+- `.env` excluido de Git.
+
+CORS está habilitado y no reemplaza la autenticación.
+La API actual no incluye autenticación ni control de permisos.
+
+## Despliegue
+
+La versión local fue comprobada.
+La reactivación del despliegue en Railway está pendiente.
 
 ## Autor
 
 Agustín Spataro
+
+- GitHub: https://github.com/spataro787
+- LinkedIn: https://www.linkedin.com/in/agustin-spataro-dev/
